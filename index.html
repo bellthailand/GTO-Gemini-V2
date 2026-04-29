@@ -1,1 +1,294 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GTO Range & Bluff Helper</title>
+    <style>
+        :root {
+            --bg-color: #0f1218;
+            --panel-bg: #1a1e29;
+            --primary-gold: #facc15;
+            --text-muted: #64748b;
+            --text-light: #e2e8f0;
+            --danger-red: #ef4444;
+            --success-green: #22c55e;
+            --bluff-blue: #3b82f6;
+            --border-color: #2a3142;
+            
+            --pos-ep: #7f1d1d; --pos-mp: #713f12; --pos-co: #14532d;
+            --pos-btn: #1e3a8a; --pos-sb: #4c1d95; --pos-bb: #4a044e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-light); padding: 20px; padding-bottom: 50px; }
+        
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h3 { color: var(--text-muted); font-size: 12px; letter-spacing: 2px; font-weight: normal; }
+        .header h1 { color: var(--primary-gold); font-size: 32px; font-weight: bold; margin: 5px 0; }
+        .header p { color: var(--text-muted); font-size: 12px; letter-spacing: 1px; }
+
+        .section-title { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; display: flex; align-items: center; }
+        .section-title::before { content: ""; width: 15px; height: 1px; background-color: var(--text-muted); margin-right: 10px; }
+
+        .grid-pos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
+        .btn-pos { 
+            background: var(--panel-bg); color: var(--text-muted); border: 1px solid var(--border-color);
+            padding: 12px 0; border-radius: 8px; font-weight: bold; font-size: 14px; text-align: center; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-pos.active { border-color: var(--primary-gold); color: var(--primary-gold); box-shadow: 0 0 10px rgba(250, 204, 21, 0.2); }
+        
+        .grid-cards { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 20px; }
+        .btn-card {
+            background: var(--panel-bg); color: var(--text-muted); border: 1px solid var(--border-color);
+            padding: 12px 0; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; text-align: center;
+        }
+        .btn-card.selected { background: var(--primary-gold); color: #000; border-color: var(--primary-gold); }
+
+        .selected-hand-box { display: flex; justify-content: space-between; align-items: center; background: var(--panel-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 20px; }
+        .selected-hand-text { color: var(--primary-gold); font-size: 32px; font-weight: bold; }
+        .btn-clear { background: transparent; color: var(--danger-red); border: 1px solid var(--danger-red); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; }
+
+        .grid-suit { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .btn-suit { background: var(--panel-bg); border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; text-align: center; cursor: pointer; color: var(--text-muted); }
+        .btn-suit.active { border-color: var(--primary-gold); color: var(--primary-gold); box-shadow: 0 0 10px rgba(250, 204, 21, 0.2); }
+        .suit-title { font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+        .suit-desc { font-size: 10px; opacity: 0.7; }
+
+        .result-box { background: rgba(239, 68, 68, 0.05); border: 1px solid var(--border-color); padding: 25px 15px; border-radius: 12px; text-align: center; min-height: 200px;}
+        .result-title { font-size: 10px; color: var(--text-muted); letter-spacing: 2px; margin-bottom: 10px; text-transform: uppercase; }
+        .action-text { font-size: 36px; font-weight: bold; color: var(--danger-red); margin-bottom: 15px; line-height: 1.1; }
+        .details { font-size: 13px; color: var(--text-light); text-align: left; line-height: 1.6; display: none; }
+        
+        .result-box.bluff { background: rgba(250, 204, 21, 0.05); border-color: var(--primary-gold); }
+        .result-box.bluff .action-text { color: var(--primary-gold); }
+        .result-box.bluff .details { display: block; }
+        .result-box.bluff .details span { color: var(--primary-gold); font-weight: bold; }
+
+        .result-box.value { background: rgba(34, 197, 94, 0.05); border-color: var(--success-green); }
+        .result-box.value .action-text { color: var(--success-green); }
+        .result-box.value .details { display: block; }
+        .result-box.value .details span { color: var(--success-green); font-weight: bold; }
+
+        .result-box.threebet { background: rgba(59, 130, 246, 0.05); border-color: var(--bluff-blue); }
+        .result-box.threebet .action-text { color: var(--bluff-blue); }
+        .result-box.threebet .details { display: block; }
+        .result-box.threebet .details span { color: var(--bluff-blue); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h3>SOLVER-BASED STRATEGY</h3>
+        <h1>RANGE HELPER</h1>
+        <p style="color: #ef4444; font-weight: bold;">GTO ENGINE (VER 2.0)</p>
+    </div>
+
+    <div class="section-title">01 ตำแหน่ง (POSITION)</div>
+    <div class="grid-pos" id="posContainer">
+        <div class="btn-pos" data-pos="UTG">UTG</div>
+        <div class="btn-pos" data-pos="UTG+1">UTG+1</div>
+        <div class="btn-pos" data-pos="MP">MP</div>
+        <div class="btn-pos" data-pos="HJ">HJ</div>
+        <div class="btn-pos" data-pos="CO">CO</div>
+        <div class="btn-pos" data-pos="BTN">BTN</div>
+        <div class="btn-pos" data-pos="SB">SB</div>
+        <div class="btn-pos" data-pos="BB">BB</div>
+    </div>
+
+    <div class="section-title">02 เลือกไพ่ (กดที่ตัวเดิม 2 ครั้ง เพื่อทำไพ่คู่)</div>
+    <div class="grid-cards" id="cardContainer"></div>
+
+    <div class="selected-hand-box">
+        <div>
+            <div style="font-size: 10px; color: #64748b; margin-bottom: 5px; letter-spacing: 1px;">SELECTED HAND</div>
+            <div class="selected-hand-text" id="selectedHandDisplay">--</div>
+        </div>
+        <button class="btn-clear" onclick="clearCards()">✕ CLEAR</button>
+    </div>
+
+    <div class="section-title">03 ชนิดไพ่ (SUIT)</div>
+    <div class="grid-suit">
+        <div class="btn-suit" id="btnSuited" onclick="setSuit('s')">
+            <div class="suit-title">SUITED</div>
+            <div class="suit-desc">♠♥ ดอกเดียวกัน</div>
+        </div>
+        <div class="btn-suit" id="btnOffsuit" onclick="setSuit('o')">
+            <div class="suit-title">OFFSUIT</div>
+            <div class="suit-desc">♠♦ คนละดอก</div>
+        </div>
+    </div>
+
+    <div class="result-box" id="resultBox">
+        <div class="result-title">RECOMMENDED ACTION</div>
+        <div class="action-text" id="actionText">SELECT</div>
+        <div class="details" id="actionDetails"></div>
+    </div>
+
+    <script>
+        const ranks = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
+        const cardValues = {'A':14,'K':13,'Q':12,'J':11,'T':10,'9':9,'8':8,'7':7,'6':6,'5':5,'4':4,'3':3,'2':2};
+        let state = { pos: '', cards: [], suit: '' };
+
+        function init() {
+            const cardContainer = document.getElementById('cardContainer');
+            ranks.forEach(r => {
+                let div = document.createElement('div');
+                div.className = 'btn-card';
+                div.innerText = r;
+                div.onclick = () => selectCard(r, div);
+                cardContainer.appendChild(div);
+            });
+            document.querySelectorAll('.btn-pos').forEach(btn => {
+                btn.onclick = (e) => {
+                    document.querySelectorAll('.btn-pos').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    state.pos = e.target.dataset.pos;
+                    calculateGTO();
+                };
+            });
+        }
+
+        function selectCard(rank, element) {
+            // โลจิกกดซ้ำสร้างไพ่คู่ (เช่น กด A แล้วกด A อีกที)
+            if (state.cards.length === 1 && state.cards[0] === rank) {
+                state.cards.push(rank);
+                state.suit = ''; 
+                document.getElementById('btnSuited').classList.remove('active');
+                document.getElementById('btnOffsuit').classList.remove('active');
+            } 
+            // โลจิกเคลียร์ไพ่ถ้ากดเกิน 2 ใบ
+            else if (state.cards.length >= 2) {
+                state.cards = [rank];
+                document.querySelectorAll('.btn-card').forEach(b => b.classList.remove('selected'));
+                element.classList.add('selected');
+            } 
+            // โลจิกกดไพ่ปกติ
+            else {
+                state.cards.push(rank);
+                element.classList.add('selected');
+            }
+            // เรียงไพ่ ใหญ่-เล็ก
+            if(state.cards.length === 2 && state.cards[0] !== state.cards[1]) {
+                state.cards.sort((a,b) => cardValues[b] - cardValues[a]);
+            }
+            updateDisplay();
+            calculateGTO();
+        }
+
+        function setSuit(s) {
+            if(state.cards.length < 2 || state.cards[0] === state.cards[1]) return; 
+            state.suit = s;
+            document.getElementById('btnSuited').classList.toggle('active', s === 's');
+            document.getElementById('btnOffsuit').classList.toggle('active', s === 'o');
+            updateDisplay();
+            calculateGTO();
+        }
+
+        function clearCards() {
+            state.cards = []; state.suit = '';
+            document.querySelectorAll('.btn-card').forEach(b => b.classList.remove('selected'));
+            document.getElementById('btnSuited').classList.remove('active');
+            document.getElementById('btnOffsuit').classList.remove('active');
+            updateDisplay(); calculateGTO();
+        }
+
+        function updateDisplay() {
+            let handStr = state.cards.length === 2 ? (state.cards[0] === state.cards[1] ? state.cards[0]+state.cards[1] : state.cards[0]+state.cards[1]+state.suit) : state.cards.join('');
+            document.getElementById('selectedHandDisplay').innerText = handStr || '--';
+        }
+
+        function calculateGTO() {
+            const resBox = document.getElementById('resultBox');
+            const txtAction = document.getElementById('actionText');
+            const txtDetails = document.getElementById('actionDetails');
+
+            if (!state.pos || state.cards.length < 2 || (state.cards[0] !== state.cards[1] && !state.suit)) {
+                txtAction.innerText = "WAITING...";
+                txtDetails.innerHTML = "โปรดเลือกตำแหน่ง, ไพ่ 2 ใบ และชนิดไพ่";
+                resBox.className = 'result-box'; return;
+            }
+
+            let c1 = state.cards[0], c2 = state.cards[1];
+            let v1 = cardValues[c1], v2 = cardValues[c2];
+            let isSuited = state.suit === 's';
+            let isPair = c1 === c2;
+            let gap = v1 - v2;
+
+            let action = "FOLD";
+            let advice = "";
+
+            // 1. หมวด PREMIUM VALUE (ไพ่เทพที่เปิดได้ทุกตำแหน่ง)
+            if (isPair && v1 >= 9 || (v1 === 14 && v2 >= 11) || (v1 === 13 && v2 === 12 && isSuited)) {
+                action = "VALUE";
+                advice = `
+                    • <b>Preflop:</b> เปิด Raise <span>2.5x - 3x BB</span> อย่างมั่นใจ นี่คือ Range ทำเงินหลัก<br>
+                    • <b>Facing Raise:</b> สวน 3-Bet ไปที่ <span>3.5x</span> เพื่อเอา Value ทันที<br>
+                    • <b>Postflop:</b> ถ้าฮิต Top Pair หรือมี Overpair ให้ดึง Value หนักๆ <span>66% - 75% Pot</span>
+                `;
+            }
+            // 2. ตำแหน่ง Early (UTG / UTG+1)
+            else if (['UTG', 'UTG+1'].includes(state.pos)) {
+                if ((isPair && v1 >= 7) || (v1 === 14 && v2 >= 10 && isSuited) || (v1 === 13 && v2 >= 11 && isSuited)) {
+                    action = "VALUE"; advice = `• <b>Preflop:</b> เปิด <span>2.5x BB</span> จาก EP ไพ่คุณแข็งแกร่งพอที่จะสู้ในระยะยาว`;
+                } else if ((isSuited && v1 === 14 && v2 <= 5) || (isSuited && gap === 1 && v1 >= 8 && v1 <= 11)) {
+                    action = "BLUFF"; advice = `
+                        • <b>Preflop:</b> เปิดเป็น Coverage Bluff <span>2.5x BB</span><br>
+                        • <b>เหตุผลจาก Solver:</b> ใช้ Suited Connectors (เช่น 87s, T9s) และ A5s เพื่อบาลานซ์ Range ให้คู่ต่อสู้จับทางยาก
+                    `;
+                }
+            }
+            // 3. ตำแหน่ง Middle (MP / HJ)
+            else if (['MP', 'HJ'].includes(state.pos)) {
+                if ((isPair && v1 >= 5) || (v1 >= 13 && v2 >= 10) || (isSuited && v1 === 14 && v2 >= 8)) {
+                    action = "VALUE"; advice = `• <b>Preflop:</b> เปิด Open Raise <span>2.5x BB</span> นี่คือไพ่ Value ปกติสำหรับตำแหน่งกลาง`;
+                } else if ((isSuited && v1 === 14 && v2 <= 5) || (isSuited && gap <= 2 && v1 >= 7 && v1 <= 11)) {
+                    action = "BLUFF"; advice = `
+                        • <b>Preflop:</b> ใช้เป็นไพ่ Semi-Bluff เปิด <span>2.5x BB</span><br>
+                        • <b>Flop:</b> ถ้าติด Draw ให้ C-Bet ขู่ต่อเนื่องที่ <span>33% Pot</span>
+                    `;
+                }
+            }
+            // 4. ตำแหน่ง Late (CO / BTN)
+            else if (['CO', 'BTN'].includes(state.pos)) {
+                if ((isPair && v1 >= 2) || (v1 >= 12 && v2 >= 9) || (isSuited && v1 === 14)) {
+                    action = "VALUE"; advice = `• <b>Preflop:</b> เปิด Raise เพื่อขโมยหรือเอา Value <span>2.5x BB</span>`;
+                } else if ((isSuited && gap <= 3 && v1 >= 6) || (v1 === 14 && v2 >= 2) || (isSuited && v1 === 13 && v2 >= 5)) {
+                    action = "BLUFF"; advice = `
+                        • <b>Preflop:</b> Steal Raise <span>2.5x BB</span> เพื่อขโมยบลายด์ หากโดน 3-Bet กลับให้หมอบ<br>
+                        • <b>Postflop:</b> หากบอร์ดออกไพ่สูง ให้ใช้ความได้เปรียบเรื่องตำแหน่ง C-Bet <span>33%</span> เพื่อปล้น Pot ได้เลย
+                    `;
+                }
+            }
+            // 5. Blinds (SB / BB)
+            else if (['SB', 'BB'].includes(state.pos)) {
+                if ((isSuited && v1 === 14 && v2 <= 5) || (isSuited && gap <= 1 && v1 >= 7 && v1 <= 11) || (isSuited && v1 === 13 && v2 === 9)) {
+                    action = "THREEBET"; advice = `
+                        • <b>Preflop:</b> นี่คือหัวใจของ GTO! ให้ใช้ไพ่นี้ทำ <b>3-Bet Bluff</b> ไซส์ใหญ่ <span>4x - 5x</span> สวนคนที่เปิดมาจากตำแหน่งหลังๆ<br>
+                        • <b>Flop:</b> C-bet <span>33%</span> บนบอร์ด A หรือ K high
+                    `;
+                } else if (isPair || (v1 >= 11 && v2 >= 10)) {
+                     action = "VALUE"; advice = `• <b>Preflop:</b> 3-Bet เพื่อ Value หรือถ้าเจอกดดันมาเล็กน้อย สามารถเลือก Call เพื่อป้องกันบลายด์ได้`;
+                }
+            }
+
+            // แสดงผล UI
+            if (action === "VALUE") {
+                resBox.className = 'result-box value'; txtAction.innerText = 'RAISE (VALUE)'; txtDetails.innerHTML = advice;
+            } else if (action === "BLUFF") {
+                resBox.className = 'result-box bluff'; txtAction.innerText = 'RAISE (BLUFF)'; txtDetails.innerHTML = advice;
+            } else if (action === "THREEBET") {
+                resBox.className = 'result-box threebet'; txtAction.innerText = '3-BET BLUFF'; txtDetails.innerHTML = advice;
+            } else {
+                resBox.className = 'result-box'; txtAction.innerText = 'FOLD';
+                txtDetails.innerHTML = `ไพ่ <b>${c1}${c2}${state.suit}</b> ในตำแหน่ง <b>${state.pos}</b> อยู่นอก Range ทำเงิน<br><br><i>Solver แนะนำให้หมอบทิ้งทันที</i>`;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
 
